@@ -24,15 +24,15 @@ def compute_log_kernel_size(sigma):
 
 # 2. Form the LoG mask
 # NOTE: [0,0] is the middle cell
-def compute_log_kernel(kernel_size):
+def compute_log_kernel(kernel_size, sigma):
     log_kernel = np.zeros((kernel_size, kernel_size))
     kernel_shift = int(kernel_size/2)
     for x in range(-kernel_shift, kernel_shift + 1):
         for y in range(-kernel_shift, kernel_shift + 1):
             log_x_y = 1
             redundant_part =\
-                -((x**2 + y**2)/(2*kernel_size**2))
-            log_x_y = log_x_y * -1/(np.pi*(kernel_size**4))
+                -((x**2 + y**2)/(2*sigma**2))
+            log_x_y = log_x_y * -1/(np.pi*(sigma**4))
             log_x_y = log_x_y * (1 + redundant_part)
             log_x_y = log_x_y * (np.e**redundant_part)
             log_kernel[x+kernel_shift][y+kernel_shift] =\
@@ -85,7 +85,7 @@ def log_edge_detection(org_img_array, sigma, threshold):
     #    1. Determine the size of the LoG mask
     log_kernel_size = compute_log_kernel_size(sigma)
     #    2. Form the LoG mask
-    log_kernel_window = compute_log_kernel(log_kernel_size)
+    log_kernel_window = compute_log_kernel(log_kernel_size, sigma)
     #    3. Convolve the LoG mask with the image
     log_convolved_array = convolve(org_img_array, log_kernel_window)
     #    4. Search for the zero crossings in the result of the convolution
@@ -95,10 +95,10 @@ def log_edge_detection(org_img_array, sigma, threshold):
     #    form the edge image by setting the position of zero crossing to 1
     #    and other positions to 0
     # TODO   
-    prewitt_edge_array = prewitt_edge_detection(org_img_array, threshold)
+    prewitt_edge_array = prewitt_edge_detection(log_convolved_array, threshold)
     
     
-    corner_detect_img = Image.fromarray(log_convolved_array)
+    corner_detect_img = Image.fromarray(prewitt_edge_array)
     corner_detect_img = corner_detect_img.convert("L")
     return log_convolved_array, corner_detect_img
     
