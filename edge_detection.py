@@ -109,25 +109,19 @@ def zero_crossings_1(some_array):
                 return True
         return False
 
-    print("Calculating zero-crossings..")
+    print("Calculating zero-crossings (TECHNIQUE 1)..")
     thresholded_array = threshold_array(some_array, threshold = 0)
     zero_crossings_array = np.zeros(some_array.shape)
 
     for x in range(some_array.shape[0]):
-#        x_zero_crossing_indices = np.where(np.diff(np.sign(thresholded_array[x])))[0] + 1
         for y in range(some_array.shape[1]):
             if thresholded_array[x][y] != 0:
                 zero_crossings_array[x][y] =\
                     has_zero_neighbor(thresholded_array, x, y)
-#            y_zero_crossing_indices = np.where(np.diff(np.sign(thresholded_array_t[y])))[0] + 1
-#            for i in x_zero_crossing_indices:
-#                for j in y_zero_crossing_indices:
-#                    zero_crossings_array[i][j] = True
-#            x[numpy.diff(numpy.sign(y)) != 0]
     return zero_crossings_array
 
 def zero_crossings_2(some_array):
-    print("Calculating zero-crossings..")
+    print("Calculating zero-crossings (TECHNIQUE 2)..")
     some_array_t = some_array.T
     zero_crossings_array = np.zeros(some_array.shape)
 
@@ -138,6 +132,7 @@ def zero_crossings_2(some_array):
     for y in range(some_array.shape[0]):
         zero_crossings_array[y][:-1] = np.where(abs(np.diff(np.sign(some_array_t[y]))) > 0, 1, 0)
     zero_crossings_array = zero_crossings_array.T
+                
     return zero_crossings_array
 
 def two_arrays_meet(array_1, array_2, assign_value = 255):
@@ -156,7 +151,8 @@ def two_arrays_meet(array_1, array_2, assign_value = 255):
 #    5. If there is sufficient edge evidence from a first derivative operator,
 #    form the edge image by setting the position of zero crossing to 1
 #    and other positions to 0
-def log_edge_detection(org_img_array, sigma, threshold):
+def log_edge_detection(org_img_array, sigma,
+                       threshold = 0.1, automatic_thresholding = False):
     print("=> Log Edge Detection with sigma = %s" % str(sigma))
     #    1. Determine the size of the LoG mask
     log_kernel_size = compute_log_kernel_size(sigma)
@@ -165,27 +161,36 @@ def log_edge_detection(org_img_array, sigma, threshold):
     #    3. Convolve the LoG mask with the image
     log_convolved_array = convolve(org_img_array, log_kernel_window)
     #    4. Search for the zero crossings in the result of the convolution
-    zero_crossings_array = zero_crossings_1(log_convolved_array)
-    
     #    5. If there is sufficient edge evidence from a first derivative operator,
     #    form the edge image by setting the position of zero crossing to 1
     #    and other positions to 0
-    first_deriv_array = prewitt_edge_detection(org_img_array,
-                                             threshold,
-                                             thresholding = True)
-    
-    edge_img_array = two_arrays_meet(first_deriv_array, zero_crossings_array)
 
+    # METHOD 1,2: USING ZERO CROSSING METHOD
+#    zero_crossings_array = zero_crossings_1(log_convolved_array)
+#    first_deriv_array = prewitt_edge_detection(org_img_array,
+#                                               threshold,
+#                                               thresholding = True)
+#    
+#    edge_img_array = two_arrays_meet(first_deriv_array, zero_crossings_array)
+#    edge_detect_img = Image.fromarray(edge_img_array).convert("L")
+
+
+    # METHOD 3: APPLYING PREWITT DIRECTLY ON THE CONVOLVED ARRAY METHOD    
+    log_deriv_array = prewitt_edge_detection(log_convolved_array,
+                                             thresholding = False)
 #    log_deriv_array_normalized = normalize(log_deriv_array,
 #                                   min_value = 0,
-#                                   max_value = 255)
-#    thresholded_edges = threshold_array(log_deriv_array,
-#                                        threshold = 1,
-#                                        lower_value = 0,
-#                                        upper_value = 255)
-#    
-    corner_detect_img = Image.fromarray(edge_img_array).convert("L")
-    return log_convolved_array, corner_detect_img
+#                                   max_value = 1)
+    if(automatic_thresholding):
+        threshold = np.mean(log_deriv_array) +\
+                    np.sqrt(np.var(log_deriv_array))
+    thresholded_edges = threshold_array(log_deriv_array,
+                                        threshold,
+                                        lower_value = 0,
+                                        upper_value = 255)
+    edge_detect_img = Image.fromarray(thresholded_edges).convert("L")
+    edge_detect_img
+    return log_convolved_array, edge_detect_img
     
 
 # =============================================================================
@@ -215,8 +220,7 @@ def sharpen_image(org_img_array, sharpen_value = 50):
                 sharpen_value = 255
             sharpen_img_array[x][y] = sharpen_value
             
-    sharpen_img = Image.fromarray(sharpen_img_array)
-    sharpen_img = sharpen_img.convert("L")
+    sharpen_img = Image.fromarray(sharpen_img_array).convert("L")
     return sharpen_img_array, sharpen_img   
     
     
@@ -228,11 +232,12 @@ def sharpen_image(org_img_array, sharpen_value = 50):
 img_filepath = "Cameraman.tif"
 org_img = Image.open(img_filepath)
 org_img_array = np.array(org_img)
-threshold = 0.1
+#threshold = 0.1
 
 # Output Laplacian Of Gausian edge detecteded Images
 for sigma in [2, 3, 4]:    
-    img_array, image = log_edge_detection(org_img_array, sigma, threshold)
+    img_array, image = log_edge_detection(org_img_array, sigma,
+                                          automatic_thresholding = True)
     image.save(img_filepath + str(sigma) + "_log.jpg")
 
 # Output sharpened image
